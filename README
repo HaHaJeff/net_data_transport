@@ -1,0 +1,40 @@
+/*define message protocol*/
+struct st_message_header{};						//include src(ip, port, protocol) and dst(ip, port, port) 
+
+struct st_message_data{};						//include data you want to transfer
+
+struct st_message{};							//include data ande header
+
+create_socket(st_message_header);				//create a socket to communication
+
+send_message();									//src(ip, port) dst(gate.ip, gate.port) message_header(src, dst(ip, port), protocol)
+
+recv_message();									//the buffer for the tcp/ip stack is content
+
+encrpty_message_header();		
+
+decrpty_message_header();                
+
+
+
+/*client*/
+construct message(encrpty message_header);
+
+
+
+/*server*/
+parse_message();								//return message_header message_data
+
+construct_message();							//need socket connect to message_header.dst, tcp/ip stack content is message_data
+
+map_connect();									//pair<message_header.src, sockfd>
+
+add_to_epoll();									//add sockfd to epoll_set
+
+delete_to_epoll();								//delete sockfd to epoll_set
+
+timer();										//boost::circlebuffer and share_ptr and weak_ptr
+
+add_to_timer();									//add pair<messafe_header.src, sockfd>	to circlebuffer	
+
+delete_to_timer();								//delete circlebuffer[0] to circlebuffer

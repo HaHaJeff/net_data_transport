@@ -1,0 +1,32 @@
+inner_invoke.h:   include serialization
+
+inner_message.h:  define localmessage
+	a>ip is in_addr_t   unsigned int
+
+encrypt_moudle.h: invoke CPython and Serialization to encrypt
+
+
+
+protocol:  name ATP          like p2p       
+	1:client send a dragm to NATServer, the dragm include client's IP and PORTand Protocol, the drgam's header is encrypted, only NATServer can decrypt it	
+	
+	2:server send a drgam to Client, the dgram include server's port which connct to External network address.and Server will inculde pair<sockfd_out, sockfd_in>.EC:must when disconnect,you should disconnect sockfd_out, sockfd_in and delete pair<>
+	
+	3:client use the NATServer's IP and the port to swap data.
+	
+	4:close sockfd_in and close sockfd_out and delete pair<>
+
+Event:  
+	1:CSynEvent  the handle of SYN is encrypt message_header, the encrypt text as message_data to NATServer
+
+	2:CAckEvent  the handle of ACK is decrypt message_data, the decrypt text as message_header, meanwhile NATServer tell clilent you can send data to me
+,and build a map sock_in sock_out
+
+	3:CAckEvent
+
+	4:CFinEvent the handle of FIN is to finish this connect, so in client, you should close sock_client, NATServer should close map<sock_client, sock_server> and peer should close peer sock to server
+
+CSocket:
+CSocketClient: make a sock, make event include sock
+
+CSocketServer: after accept you should record conn_sock, and make a peer sock, inert into g_map_sock<conn_sock, peer_sock> , join in epoll_fd, start to epoll

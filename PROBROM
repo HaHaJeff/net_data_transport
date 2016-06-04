@@ -1,0 +1,11 @@
+1:invoke python_moudle PyObject(ob_refcnt, ob_reftype), i'm not notice it's ob_refcnt
+
+2:the argument of encrypt_moudl is char *, but my var is struct message_header. So, i have 3 method to solve it
+	a>type casting, but not successed, i assume the reason is memoryment alignment. However, the picture said it was not
+	b>boost serialization is the better chioce for me, and i accept it
+	c>google protocol buff, it need to install, and should specliy to write a proto file so i give up it, but it is the best choice
+
+3:abstract and subclass must palce the front of other class who invoke the abstract
+
+4:epoll_module how to judge the event is SYN ACK TXT FIN, if event is SYN orFIN, do_something1 else do_something2
+

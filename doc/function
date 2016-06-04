@@ -1,0 +1,9 @@
+encrypt module: c++ invoke python to encrypt and decrypt message_header
+	1>CPython(): construct object for encrypt
+	2>initial(const string name, const char *text): exec python module
+	name for function, text for encrypt
+
+timer module: boost circlrbuffer with shared_ptr and weak_ptr
+	1>CTimer()
+	2>add_to_timer()
+	3>delete_to_timer()
