@@ -129,10 +129,12 @@ namespace socket_module
 	void splice_sock(std::pair<int, int> psock)
 	{
 		int pipe_fd[2];
-		pipe(pipe_fd);
-		splice(psock.first, NULL, pipe_fd[1], NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
-		splice(pipe_fd[0], NULL, psock.second, NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
-
+		int ret = pipe(pipe_fd);
+		std::cout << "pipe ret :" << ret << std::endl;
+		ret = splice(psock.first, NULL, pipe_fd[1], NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
+		std::cout << "splice1 ret :" << ret << std::endl;
+		ret = splice(pipe_fd[0], NULL, psock.second, NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
+		std::cout << "splice2 ret :" << ret << std::endl;
 	}
 
 	void setnonblock_sock(int sock)

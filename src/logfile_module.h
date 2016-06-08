@@ -17,7 +17,7 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
-
+#include <sys/syscall.h>
 using namespace std;
 using namespace mutex_module;
 
@@ -82,7 +82,7 @@ namespace logfile_module
 				time_info = localtime(&raw_time);
 				m_log_time = asctime(time_info);
 				m_log_time = string(m_log_time.begin(), m_log_time.begin() + 20);
-				m_log_time += ":";
+				m_log_time += "--";
 			}
 
 		private:
@@ -93,6 +93,10 @@ namespace logfile_module
 			CCondMutex m_log_write_cond;
 			CMutex m_log_write_mutex;
 	};
+
+	CLogFile g_system_log("./log/system_log.txt");
+	CLogFile g_event_log("./log/event_log.txt");
+	CLogFile g_thread_log("./log/thread_log.txt");
 }
 
 #endif

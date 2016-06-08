@@ -1,41 +1,57 @@
 /*************************************************************************
-	> File Name: test2.cpp
+	> File Name: test1.cpp
 	> Author: rebot
 	> Mail: 327767852@qq.com 
-	> Created Time: Sat 04 Jun 2016 03:42:22 PM CST
+	> Created Time: Thu 02 Jun 2016 01:02:56 PM CST
  ************************************************************************/
-#include "logfile_module.h"
-#include <pthread.h>
 
-using namespace logfile_module;
+#include <iostream>
+#include "mutex_module.h"
+#include "thread_module.h"
+#include "event_module.h"
+#include <signal.h>
+#include <string.h>
+#include <stdlib.h>
 
-void *func(void *args)
+using namespace std;
+using namespace event_module;
+using namespace thread_module;
+int main(void)
 {
-	CLogFile *log = (CLogFile *)args;
-	log->write_log();
-}
+	
+	socket_module::CSocketServer client;
+	IP ip = inet_addr("127.0.0.1");
+	PORT port  = 6666;
+	PROTOCOL protocol = SOCK_STREAM;
 
+	st_event event;
+	client.create_sock(ip, port, protocol);
+		
+	client.listen_sock();
 
-int main()
-{
-	CLogFile log;
-	pthread_t pid;
-	pthread_create(&pid, NULL, func, &log);
-	void *ret;
-	log.push_log("i have access you 1, you know!");
-	log.push_log("i have access you 2, you know!");
-	log.push_log("i have access you 3, you know!");
-	log.push_log("i have access you 4, you know!");
-	log.push_log("i have access you 5, you know!");
-	log.push_log("i have access you 6, you know!");
-	log.push_log("i have access you 7, you know!");
-	log.push_log("i have access you 8, you know!");
-	log.push_log("i have access you 9, you know!");
-	log.push_log("i have access you a, you know!");
-	log.push_log("i have access you b, you know!");
-	log.push_log("i have access you c, you know!");
-	log.push_log("i have access you d, you know!");
-	log.push_log("i have access you e, you know!");
-	log.push_log("i have access you f, you know!");
-	pthread_join(pid, &ret);
+	while(1)
+	{
+		client.accept_sock();
+		
+		SOCKET_T conn = client.get_conn_sock();
+		perror("accept_sock");
+	
+		bzero(&event, sizeof(event));
+		std::cout << "peer socket" << conn << std::endl;
+		int ret = recv(conn, &event, sizeof(event), 0);
+		if(ret == -1)
+		{
+			if(errno == EAGAIN)
+				continue;
+			else
+			{
+				perror("recv");
+			}
+		}
+		
+		std::cout << "recv bytes" << ret << std::endl;
+		std::cout << event.m_msg.m_data.m_content << std::endl;
+		
+		send(conn, &event, sizeof(st_event), 0);
+	}
 }

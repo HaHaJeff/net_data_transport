@@ -9,7 +9,13 @@
 
 #include "event_module.h"
 #include <sys/epoll.h>
+#include "logfile_module.h"
+#include "thread_module.h"
 
+using namespace thread_module;
+using namespace logfile_module;
+using namespace socket_module;
+using namespace server_module;
 
 namespace epoll_module
 {
@@ -19,14 +25,17 @@ namespace epoll_module
 	class CEpoll : public boost::noncopyable
 	{
 		public:
-			CEpoll(socket_module::CSocketServer listen) : m_listen(listen),m_epollfd(0),m_map(server_module::g_sock_map), m_queue(server_module::g_ready_queue){}
-			
+			CEpoll(socket_module::CSocketServer listen) : m_listen(listen),m_epollfd(0),m_map(server_module::g_sock_map), m_queue(server_module::g_ready_queue), m_cond(m_mutex)
+		{
+			m_thread = new CThreadManger(100);
+		}	
+
 			bool initial_epoll()
 			{
 				m_epollfd = epoll_create(1024);
 				if(-1 == m_epollfd)
 				{
-					perror("epoll_create");
+					g_system_log.push_log("epoll create error, please exam epoll_module.h");
 					return false;
 				}
 
@@ -36,7 +45,7 @@ namespace epoll_module
 				ev.data.fd = m_listen.get_sock();
 				if(epoll_ctl(m_epollfd, EPOLL_CTL_ADD, m_listen.get_sock(), &ev) == -1)
 				{
-					perror("add_epoll listensock");
+					g_system_log.push_log("add listen error, please exam epoll_module.h");
 					return false;
 				}
 				return true;
@@ -52,7 +61,7 @@ namespace epoll_module
 
 				if(epoll_ctl(m_epollfd, EPOLL_CTL_ADD, sock, &ev) == -1)
 				{
-					perror("add_epoll connsock");
+					g_system_log.push_log("add sockfd error, please exam epoll_module.h");
 					return false;
 				}
 				return true;
@@ -65,7 +74,7 @@ namespace epoll_module
 
 				if(epoll_ctl(m_epollfd, EPOLL_CTL_DEL, sock, &ev) == -1)
 				{
-					perror("delete_epoll");
+					g_system_log.push_log("delete sockfd error, please exam epoll_module.h");
 					return false;
 				}
 				return true;
@@ -88,44 +97,48 @@ namespace epoll_module
 						m_listen.accept_sock();
 						SOCKET_T conn_sock = m_listen.get_conn_sock();
 						add_epoll(conn_sock);
-			//			m_mutex.lock();
-			//			m_map.insert(std::pair<int, int>(conn_sock, 0));
-			//			m_mutex.unlock();
 					}
 					else
 					{
 						SOCKET_T ready_sock = m_events[n].data.fd;
+					//	delete_epoll(ready_sock);
+						std::map<int, int>::iterator iter = g_sock_map.find(ready_sock);							
+						std::cout << "come sockfd:" << ready_sock << std::endl;
+						if(iter != g_sock_map.end())
+						{
+							add_epoll((*iter).second);
+							std::cout << "insert fd:" << (*iter).second << std::endl;
+						}
 						__dispatch_event(ready_sock);
 					}
 				}
 			}
-
+		
 		private:
 			void __dispatch_event(SOCKET_T sock)
 			{	
 				m_mutex.lock();
 				m_queue.push(sock);
 				m_mutex.unlock();
-				
-				st_message msg;
-				bzero(&msg, sizeof(msg));
-				recv(sock, &msg, sizeof(msg), 0);
-				st_event event = {msg, sock};
-				event.m_msg.m_syn = 0;
-				event.m_msg.m_ack = 1;
-				CFactory fac(event);
-				fac.generate();
-				fac.handle();
+				m_cond.signal();
+
+				st_event *p_event = new st_event;
+				bzero(p_event, sizeof(st_event));
+				p_event->m_sock   = sock;
+				m_thread->run(p_event);
 			}
 
 		private:	
-			std::map<int, int>&                       m_map;
+			std::map<int, int>&           m_map;
 			SOCKET_T					  m_epollfd;
 			socket_module::CSocketServer& m_listen;
 			struct epoll_event			  m_events[MAX_EVENTS];
+		
+		public:
 			std::queue<int>&              m_queue;
 			mutex_module::CMutex m_mutex;
+			mutex_module::CCondMutex m_cond;
+			CThreadManger*                m_thread;
 	};
 }
-
 #endif

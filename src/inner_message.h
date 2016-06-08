@@ -69,7 +69,9 @@ typedef struct bit_type
 	unsigned int syn:1;
 	unsigned int ack:1;
 	unsigned int txt:1;
-	unsigned int fin:1;
+	unsigned int finc:1;
+	unsigned int fins:1;
+	unsigned int trans:1;
 }st_type;
 
 typedef struct message
@@ -82,6 +84,8 @@ typedef struct message
 #define m_syn  m_type.syn
 #define m_ack  m_type.ack 
 #define m_txt m_type.txt
-#define m_fin  m_type.fin
+#define m_finc  m_type.finc
+#define m_fins  m_type.fins
+#define m_trans m_type.trans
 
 #endif

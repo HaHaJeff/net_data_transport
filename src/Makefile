@@ -1,23 +1,27 @@
- g++ -g inner_function.cpp -o Python -I/usr/include/python2.7 -L/usr/lib/python2.7 -lpython2.7 -lboost_serialization -std=c++11 
-#executable file
-PROGROM=
+LIB=-lpython2.7 -lboost_serialization -lpthread
+STD=-std=c++11
 
 CC=g++
+FLAGS=-g -w
 
-CFLAGS=-g
+PROGRAM=test test1 test2
 
-SRC=$(wildcard *.c)
+#ifeq($(PROGRAM), $(wildcard(test)))
+#	rm $(PROGRAM)
+#endif
 
-OBJ=$(SRC:.c=.o)
+all:$(PROGRAM)
+test:test.cpp
+	$(CC) $(FLAGS) $< -o $@ $(LIB) $(STD)
 
-all:depend $(PROGROM)
-depend:
-	@(CC) -MM (SRC) > .depend
+test1:test1.cpp
+	$(CC) $(FLAGS) $< -o $@ $(LIB) $(STD)
 
--include .depend
-$(PROGROM):(OBJ)
-	$(CC) $(CFLAGS)
+test2:test2.cpp
+	$(CC) $(FLAGS) $< -o $@ $(LIB) $(STD)
+
+.PHONY:
+	clean
 
 clean:
-	@rm (PROGROM) (OBJ) .depend -f
-
+	rm test test1 test2

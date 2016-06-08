@@ -11,7 +11,13 @@
 #include "concrete_handle.h"
 #include "inner_socket.h"
 #include "encrypt_module.h"
+#include "logfile_module.h"
+#include <stdio.h>
+
 using namespace logfile_module;
+
+CLogFile& event_log = g_event_log;
+
 namespace event_module
 {
 
@@ -27,8 +33,8 @@ namespace event_module
 
 	typedef struct event
 	{
-		st_message m_msg;
 		SOCKET_T   m_sock;
+		st_message m_msg;
 	}st_event;
 
 	const std::string STR_OK	= "OK FOR CONNECT";
@@ -57,6 +63,7 @@ namespace event_module
 			CSynEvent(st_event &event)
 			{
 				CSynEvent();
+				bzero(&m_event, sizeof(st_event));
 				memcpy(&m_event, &event, sizeof(st_event));
 			}
 
@@ -65,8 +72,6 @@ namespace event_module
 			{
 				st_message &msg = m_event.m_msg;
 				SOCKET_T sock = m_event.m_sock;
-				/*make event type is SYN*/
-				//msg.m_syn = 1;
 
 				/*request is ack*/
 				msg.m_syn = 0;
@@ -75,9 +80,9 @@ namespace event_module
 				encrypt_module::construct_transport_message_header(msg.m_header, encrypt_module::STR_PYTHON,
 						encrypt_module::STR_ENCRYPT, trans_msg);
 				memcpy(&msg.m_header, "0xccefccefccefccefccefccefccefccefccefccefccefccefccefccefccef", sizeof(st_message_header));
-				memcpy(&msg.m_data, trans_msg.c_str(), trans_msg.size());
+				memcpy(&msg.m_data, trans_msg.c_str(), strlen(trans_msg.c_str()));
 				
-				send(sock, &msg, sizeof(st_message), 0);
+				send(sock, &m_event, sizeof(st_event), 0);
 			}
 	};
 
@@ -99,11 +104,14 @@ namespace event_module
 			virtual void handle_event()
 			{
 				SOCKET_T sock = m_event.m_sock;
+				
+				int ret = recv(sock, &m_event, sizeof(st_event), 0);
+				std::cout << ret << std::endl;
 				st_message_header &msg_header = m_event.m_msg.m_header;
-				std::string trans_msg = m_event.m_msg.m_data.m_content;
-
-				encrypt_module::parse_transport_message_header(msg_header, encrypt_module::STR_PYTHON,
-						encrypt_module::STR_DECRYPT, trans_msg);					
+				std::string trans_msg = m_event.m_msg.m_data.m_content;				
+				std::cout << trans_msg << std::endl;
+					
+				encrypt_module::parse_transport_message_header(msg_header, encrypt_module::STR_PYTHON,encrypt_module::STR_DECRYPT, trans_msg);					
 
 				std::string str_ip = get_str_ip(msg_header.m_src.first);
 
@@ -114,11 +122,15 @@ namespace event_module
 					sock_out.create_sock(msg_header.m_dst.first, msg_header.m_dst.second, msg_header.m_protocol);
 					sock_out.connect_sock();
 				
+
 					mutex_module::CMutex mutex;
 					mutex.lock();
 					m_sock_map.insert(std::pair<int, int>(sock, sock_out.get_sock()));
+					m_sock_map.insert(std::pair<int, int>(sock_out.get_sock(), sock));
 					mutex.unlock();
+
 					send(sock, STR_OK.c_str(), STR_OK.size(), 0);
+					std::cout << STR_OK << std::endl;
 				}
 				else
 				{
@@ -162,7 +174,9 @@ namespace event_module
 				if(m_user_handle == NULL)
 					return;
 				__set_buf();
-				m_user_handle->handle_event();
+				m_event.m_msg.m_txt = 0;
+				m_event.m_msg.m_trans = 1;
+				send(m_event.m_sock, &m_event, sizeof(st_event), 0);
 			}
 			
 			void load_handle(user_module::CConcreteHandle *handle)
@@ -179,12 +193,12 @@ namespace event_module
 
 			CTxtEvent(const CTxtEvent &event)=delete;
 			CTxtEvent operator=(const CTxtEvent event)=delete;
+
 		private:
 			user_module::CConcreteHandle *m_user_handle;	
 			void __set_buf()
 			{
 				std::string str = m_event.m_msg.m_data.m_content;
-				m_user_handle->set_buf(str);
 			}
 	};
 
@@ -206,6 +220,9 @@ namespace event_module
 			virtual void handle_event()
 			{
 				SOCKET_T sock = m_event.m_sock;
+				m_event.m_msg.m_finc = 0;
+				m_event.m_msg.m_fins = 1;
+				send(sock, &m_event, sizeof(st_event), 0);
 				close(sock);
 			}
 		private:
@@ -228,6 +245,8 @@ namespace event_module
 
 			virtual void handle_event()
 			{
+				SOCKET_T sock = m_event.m_sock;
+				recv(sock, &m_event, sizeof(st_event), 0);
 				mutex_module::CMutex  mutex;
 				
 				mutex.lock();
@@ -235,11 +254,16 @@ namespace event_module
 				std::map<int, int>::iterator iter = __find_sock_map();
 
 				if(iter != m_sock_map.end())
-				{
+				{	
 					close(iter->first);
 					close(iter->second);
 				}
-
+				
+				std::map<int, int>::iterator iter_out = m_sock_map.find((*iter).second);
+				if(iter_out != m_sock_map.end())
+				{
+					m_sock_map.erase(iter_out);
+				}
 				m_sock_map.erase(iter);
 	
 				mutex.unlock();
@@ -256,6 +280,48 @@ namespace event_module
 			}
 	};
 
+	class CTransEvent : public CAbstractEvent
+	{
+		public:
+			CTransEvent() : m_sock_map(server_module::g_sock_map)
+			{
+				bzero(&m_event, sizeof(st_event));
+			}
+
+			CTransEvent(st_event &event) : m_sock_map(server_module::g_sock_map)
+			{
+				CTransEvent();
+				memcpy(&m_event, &event, sizeof(st_event));
+			}
+		public:
+			virtual void handle_event()
+			{	
+				m_mutex.lock();
+
+				std::map<int, int>::iterator iter = __find_sock_map();
+
+				if(iter != m_sock_map.end())
+				{
+					socket_module::splice_sock(*iter);
+				}
+
+				m_mutex.unlock();
+			}
+		
+		private:
+			mutex_module::CMutex m_mutex;
+		private:	
+			std::map<int, int> &m_sock_map;
+		
+		private:
+			std::map<int, int>::iterator __find_sock_map()
+			{
+				std::map<int, int>::iterator iter = m_sock_map.find(m_event.m_sock);
+				if(iter != m_sock_map.end())
+					std::cout << "find " << m_event.m_sock << std::endl;
+				return iter;
+			}
+	};
 	/*strategy module */
 	class CHandleEvent
 	{
@@ -283,12 +349,14 @@ namespace event_module
 		public:
 			CFactory(st_event event) : m_handle(new CHandleEvent(new CSynEvent(event)))
 			{
+			//	recv(event.m_sock, &event.m_msg, sizeof(st_message), 0);
 				memcpy(&m_event, &event, sizeof(st_event));
 			}
 
 			void generate()
 			{
-				unsigned int type = m_event.m_msg.m_syn * 1+ m_event.m_msg.m_ack * 2 + m_event.m_msg.m_txt * 4 + m_event.m_msg.m_fin * 8;
+				unsigned int type = m_event.m_msg.m_syn * 1+ m_event.m_msg.m_ack * 2 + m_event.m_msg.m_txt * 4 + m_event.m_msg.m_finc * 8 + m_event.m_msg.m_fins * 16 + m_event.m_msg.m_trans * 32;
+				std::cout << "type" << type <<std::endl;
 				switch(type)
 				{
 					case 1:
@@ -301,7 +369,13 @@ namespace event_module
 						m_handle = new CHandleEvent(new CTxtEvent(m_event));
 						break;
 					case 8:
+						m_handle = new CHandleEvent(new CFinEventClient(m_event));
+						break;
+					case 16:
 						m_handle = new CHandleEvent(new CFinEventServer(m_event));
+						break;
+					case 32:
+						m_handle = new CHandleEvent(new CTransEvent(m_event));
 						break;
 					default:
 						break;
@@ -311,12 +385,46 @@ namespace event_module
 			void handle()
 			{
 				m_handle->handle_event();
+				logfile();
 			}
 
 			~CFactory()
 			{
 				delete m_handle;
 				m_handle = NULL;
+			}
+
+			void logfile()
+			{
+				IP ip = m_event.m_msg.m_header.m_src.first;
+				std::string str_log = get_str_ip(ip);
+				
+				unsigned int type = m_event.m_msg.m_syn * 1+ m_event.m_msg.m_ack * 2 + m_event.m_msg.m_txt * 4 + m_event.m_msg.m_finc * 8 + m_event.m_msg.m_fins * 16 + m_event.m_msg.m_trans * 32;
+				switch(type)
+				{
+					case 1:
+						str_log += "\tstart to SYN event";
+						break;
+					case 2:
+						str_log += "\tstart to ACK event";
+						break;
+					case 4:
+						str_log += "\tstart to TXT event";
+						break;
+					case 8:
+						str_log += "\tstart to FINCLIENT event";
+						break;
+					case 16:
+						str_log += "\tstart to FINSERVER event";
+							break;
+					case 32:
+						str_log += "\tstart to TRANS event";
+						break;
+					default:
+						break;
+				}
+
+				event_log.push_log(str_log);
 			}
 		private:
 				st_event m_event;
