@@ -5,9 +5,7 @@ inner_message.h:  define localmessage
 
 encrypt_moudle.h: invoke CPython and Serialization to encrypt
 
-
-
-protocol:  name ATP          like p2p       
+protocol:  name ANTP(application net transport protocol)          like p2p       
 	1:client send a dragm to NATServer, the dragm include client's IP and PORTand Protocol, the drgam's header is encrypted, only NATServer can decrypt it	
 	
 	2:server send a drgam to Client, the dgram include server's port which connct to External network address.and Server will inculde pair<sockfd_out, sockfd_in>.EC:must when disconnect,you should disconnect sockfd_out, sockfd_in and delete pair<>

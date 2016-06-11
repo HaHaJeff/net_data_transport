@@ -5,7 +5,6 @@
   > Created Time: Tue 31 May 2016 10:38:43 AM CST
  ************************************************************************/
 
-
 #include <iostream>
 #include <string>
 #include <cstdlib>
@@ -30,13 +29,17 @@ void* f_log(void *args)
 void* f_thread(void *args)
 {
 
-	std::queue<int> *q = (std::queue<int> *)args;
+	CEpoll *p_epoll = (CEpoll *)args;
+	std::queue<int> q = p_epoll->m_queue;
+
 	while(1)
 	{
-		while(.size() == 0)
+		while(q.size() == 0)
+		{
+			cout << "size for queue:" << q.size() << endl;
 			(p_epoll->m_cond).wait();
+		}
 
-		std::queue<int> q = p_epoll->m_queue;
 		while(q.size() != 0)
 		{
 			SOCKET_T sock = q.front();
@@ -63,7 +66,6 @@ int main(void)
 	pthread_create(&system_pid, NULL, f_log, &g_system_log);
 	pthread_create(&event_pid, NULL, f_log, &g_event_log);
 	pthread_create(&thread_pid, NULL, f_log, &g_thread_log);
-//	pthread_create(&control_pid, NULL, f_thread, &g_ready_queue);
 
 	unsigned long ip1 = 1234567;
 
@@ -85,17 +87,19 @@ int main(void)
 
 	epoll_module::CEpoll epoll_sock(listenfd);
 
-
 	epoll_sock.initial_epoll();
 
 	g_system_log.push_log("ANTP start");
 
 	//	sleep(1);
 
+//	pthread_create(&control_pid, NULL, f_thread, &epoll_sock);
+
 	while(1)
 	{
 		epoll_sock.wait_epoll();
 	}
+	
 	//	int fd = open("1.txt", O_RDWR | O_CREAT, 0666);
 
 

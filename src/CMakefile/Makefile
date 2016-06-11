@@ -1,4 +1,4 @@
- g++ -g inner_function.cpp -o Python -I/usr/include/python2.7 -L/usr/lib/python2.7 -lpython2.7 -lboost_serialization -std=c++11 
+#g++ -g inner_function.cpp -o Python -I/usr/include/python2.7 -L/usr/lib/python2.7 -lpython2.7 -lboost_serialization -std=c++11 
 #executable file
 PROGROM=
 

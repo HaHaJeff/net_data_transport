@@ -54,6 +54,7 @@ namespace epoll_module
 			bool add_epoll(SOCKET_T sock)
 			{
 				struct epoll_event ev;
+		//		ev.events  = EPOLLIN | EPOLLONESHOT;
 				ev.events  = EPOLLIN | EPOLLET;
 				ev.data.fd = sock;
 				
@@ -101,7 +102,7 @@ namespace epoll_module
 					else
 					{
 						SOCKET_T ready_sock = m_events[n].data.fd;
-					//	delete_epoll(ready_sock);
+//						delete_epoll(ready_sock);
 						std::map<int, int>::iterator iter = g_sock_map.find(ready_sock);							
 						std::cout << "come sockfd:" << ready_sock << std::endl;
 						if(iter != g_sock_map.end())
@@ -119,9 +120,10 @@ namespace epoll_module
 			{	
 				m_mutex.lock();
 				m_queue.push(sock);
+	//			cout << "__dispatch_event queue for size:" << m_queue.size() << endl;
 				m_mutex.unlock();
 				m_cond.signal();
-
+				
 				st_event *p_event = new st_event;
 				bzero(p_event, sizeof(st_event));
 				p_event->m_sock   = sock;

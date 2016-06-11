@@ -79,6 +79,7 @@ namespace logfile_module
 			{
 				time_t raw_time;
 				struct tm *time_info;
+				time(&raw_time);
 				time_info = localtime(&raw_time);
 				m_log_time = asctime(time_info);
 				m_log_time = string(m_log_time.begin(), m_log_time.begin() + 20);
