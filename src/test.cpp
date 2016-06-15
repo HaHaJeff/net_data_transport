@@ -24,7 +24,6 @@ void* f_log(void *args)
 	p->write_log();
 }
 
-
 /*
 void* f_thread(void *args)
 {

@@ -14,12 +14,13 @@
 #include <boost/serialization/map.hpp>
 #include <map>
 #include <queue>
+#include <list>
 
 /*NATServer struct to <sockfdin, sockfdout>*/
 namespace server_module
 {
 	std::map<int, int> g_sock_map;
-	std::queue<int> g_ready_queue;
+	std::list<int> g_leave_queue;
 }
 
 typedef unsigned short int			U_INT_16;
@@ -43,10 +44,10 @@ typedef struct message_header
 
 	//use this function to serialize and deserialize object
 	template<class Archive>
-	void serialize(Archive & ar, const unsigned int version)
-	{
-		ar & m_src & m_dst & m_protocol;
-	}
+		void serialize(Archive & ar, const unsigned int version)
+		{
+			ar & m_src & m_dst & m_protocol;
+		}
 
 	TUPLE_TWO m_src;
 	TUPLE_TWO m_dst;
@@ -60,9 +61,9 @@ typedef struct message_data
 }st_message_data;
 
 /*
-typedef enum _type
-{SYN=1, ACK, DATA, FIN}en_type;
-*/
+   typedef enum _type
+   {SYN=1, ACK, DATA, FIN}en_type;
+   */
 
 typedef struct bit_type
 {
@@ -80,6 +81,12 @@ typedef struct message
 	st_message_header m_header;
 	st_message_data   m_data;
 }st_message;
+
+typedef struct event
+{
+	int   m_sock;
+	st_message m_msg;
+}st_event;
 
 #define m_syn  m_type.syn
 #define m_ack  m_type.ack 

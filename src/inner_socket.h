@@ -16,6 +16,8 @@
 #include <arpa/inet.h>
 #include "inner_message.h"
 
+using namespace std;
+
 namespace socket_module
 {
 	class CSocket
@@ -130,11 +132,30 @@ namespace socket_module
 	{
 		int pipe_fd[2];
 		int ret = pipe(pipe_fd);
+		st_event event;
 		std::cout << "pipe ret :" << ret << std::endl;
-		ret = splice(psock.first, NULL, pipe_fd[1], NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
-		std::cout << "splice1 ret :" << ret << std::endl;
-		ret = splice(pipe_fd[0], NULL, psock.second, NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
-		std::cout << "splice2 ret :" << ret << std::endl;
+	//	ret = splice(psock.first, NULL, pipe_fd[1], NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
+		ret = recv(psock.first, &event, sizeof(st_event), 0);	
+		printf("splice1 ret: %d\n", ret);
+		if(ret == -1)
+		{
+			if(errno == EAGAIN)
+			{
+				cout << "splice EAGAIN" << endl;
+				return;
+			}
+			if(errno == EINTR)
+			{
+				cout << "splice EINTR" << endl;
+				return;
+			}
+
+		}
+		ret = send(psock.second, &event, sizeof(st_event), 0);
+		printf("splice2 ret: %d\n", ret);
+	//	ret = splice(pipe_fd[0], NULL, psock.second, NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE);
+		close(pipe_fd[0]);
+		close(pipe_fd[1]);
 	}
 
 	void setnonblock_sock(int sock)

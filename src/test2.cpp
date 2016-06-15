@@ -1,8 +1,8 @@
 /*************************************************************************
-	> File Name: test1.cpp
-	> Author: rebot
-	> Mail: 327767852@qq.com 
-	> Created Time: Thu 02 Jun 2016 01:02:56 PM CST
+  > File Name: test1.cpp
+  > Author: rebot
+  > Mail: 327767852@qq.com 
+  > Created Time: Thu 02 Jun 2016 01:02:56 PM CST
  ************************************************************************/
 
 #include <iostream>
@@ -16,9 +16,14 @@
 using namespace std;
 using namespace event_module;
 using namespace thread_module;
-int main(void)
+int main(int argc, char **argv)
 {
-	
+		
+	if(argc < 2)
+	{
+		printf("error for args num\n");
+		exit(0);
+	}
 	socket_module::CSocketServer client;
 	IP ip = inet_addr("127.0.0.1");
 	PORT port  = 6666;
@@ -26,32 +31,39 @@ int main(void)
 
 	st_event event;
 	client.create_sock(ip, port, protocol);
-		
+
 	client.listen_sock();
 
 	while(1)
 	{
 		client.accept_sock();
-		
+
 		SOCKET_T conn = client.get_conn_sock();
 		perror("accept_sock");
-	
+
 		bzero(&event, sizeof(event));
 		std::cout << "peer socket" << conn << std::endl;
-		int ret = recv(conn, &event, sizeof(event), 0);
-		if(ret == -1)
+		
+		for(int i = 0; i < atoi(argv[1]); i++)
 		{
-			if(errno == EAGAIN)
-				continue;
-			else
+
+			int ret = recv(conn, &event, sizeof(event), 0);
+			if(ret == -1)
 			{
-				perror("recv");
+				if(errno == EAGAIN)
+					continue;
+				else
+				{
+					perror("recv");
+				}
 			}
+
+			std::cout << "recv bytes:" << ret << std::endl;
+			std::cout << event.m_msg.m_data.m_content << std::endl;
+
+			ret = send(conn, &event, sizeof(st_event), 0);
+
+			std::cout << "send:" << ret << endl;
 		}
-		
-		std::cout << "recv bytes" << ret << std::endl;
-		std::cout << event.m_msg.m_data.m_content << std::endl;
-		
-		send(conn, &event, sizeof(st_event), 0);
 	}
 }

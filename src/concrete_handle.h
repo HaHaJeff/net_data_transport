@@ -22,4 +22,5 @@ namespace user_module
 			std::string m_str_buff;
 	};
 }
+
 #endif

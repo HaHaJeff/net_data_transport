@@ -52,14 +52,12 @@ namespace mutex_module
 		
 			void wait()
 			{
-				m_mutex.lock();
 				pthread_cond_wait(&m_cond, &m_mutex.get_mutex());
 			}
 
 			void signal()
 			{
 				pthread_cond_signal(&m_cond);
-				m_mutex.unlock();
 			}
 
 			~CCondMutex()

@@ -54,16 +54,16 @@ namespace logfile_module
 
 				while(m_log_buff.size() != 0)
 				{
-					m_log_write_mutex.unlock();
-
 					m_log_file << *(m_log_buff.front()) << endl;
 					
 					delete m_log_buff.front();
 
 					m_log_buff.pop();
 				
-					m_log_write_mutex.unlock();
 				}
+				
+				m_log_write_mutex.unlock();
+			
 			}
 
 			~CLogFile()

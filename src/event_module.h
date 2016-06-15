@@ -20,6 +20,8 @@ CLogFile& event_log = g_event_log;
 
 namespace event_module
 {
+	
+	mutex_module::CMutex g_mutex;
 
 	std::string get_str_ip(IP ip)
 	{
@@ -31,11 +33,6 @@ namespace event_module
 
 	typedef int SOCKET_T;
 
-	typedef struct event
-	{
-		SOCKET_T   m_sock;
-		st_message m_msg;
-	}st_event;
 
 	const std::string STR_OK	= "OK FOR CONNECT";
 	const std::string STR_ERROR = "ERROR FOR CONNECT";
@@ -82,7 +79,9 @@ namespace event_module
 				memcpy(&msg.m_header, "0xccefccefccefccefccefccefccefccefccefccefccefccefccefccefccef", sizeof(st_message_header));
 				memcpy(&msg.m_data, trans_msg.c_str(), strlen(trans_msg.c_str()));
 				
-				send(sock, &m_event, sizeof(st_event), 0);
+				int ret = send(sock, &m_event, sizeof(st_event), 0);
+
+				printf("syn send ret:%d\n", ret);
 			}
 	};
 
@@ -106,11 +105,30 @@ namespace event_module
 				SOCKET_T sock = m_event.m_sock;
 				
 				int ret = recv(sock, &m_event, sizeof(st_event), 0);
-				std::cout << ret << std::endl;
+		
+				printf("ack send ret:%d\n", ret);
+				/*
+				if(ret == -1)
+				{
+
+					if(errno == EAGAIN)
+					{	
+						cout << "EAGIN" << endl;
+						return;
+					}	
+					if(errno == EINTR)
+					{	
+						cout << "EINTR" << endl;
+						return;
+					}	
+
+				}
+				*/
+
 				st_message_header &msg_header = m_event.m_msg.m_header;
 				std::string trans_msg = m_event.m_msg.m_data.m_content;				
-				std::cout << trans_msg << std::endl;
-					
+				printf("trans msg:%s\n", trans_msg.c_str());
+
 				encrypt_module::parse_transport_message_header(msg_header, encrypt_module::STR_PYTHON,encrypt_module::STR_DECRYPT, trans_msg);					
 
 				std::string str_ip = get_str_ip(msg_header.m_src.first);
@@ -121,16 +139,16 @@ namespace event_module
 					socket_module::CSocketClient sock_out;
 					sock_out.create_sock(msg_header.m_dst.first, msg_header.m_dst.second, msg_header.m_protocol);
 					sock_out.connect_sock();
+					
+					printf("in ack moudle peer sock_out:%d\n", sock_out.get_sock());
 				
-
-					mutex_module::CMutex mutex;
-					mutex.lock();
+					g_mutex.lock();
 					m_sock_map.insert(std::pair<int, int>(sock, sock_out.get_sock()));
 					m_sock_map.insert(std::pair<int, int>(sock_out.get_sock(), sock));
-					mutex.unlock();
+					g_mutex.unlock();
 
 					send(sock, STR_OK.c_str(), STR_OK.size(), 0);
-					std::cout << STR_OK << std::endl;
+					printf("%s\n", STR_OK.c_str());
 				}
 				else
 				{
@@ -159,7 +177,7 @@ namespace event_module
 		public:
 			CTxtEvent()
 			{
-				m_user_handle = NULL;
+			//	m_user_handle = NULL;
 				bzero(&m_event, sizeof(st_event));
 			}
 
@@ -171,31 +189,32 @@ namespace event_module
 
 			virtual void handle_event()
 			{
-				if(m_user_handle == NULL)
-					return;
+			//	if(m_user_handle == NULL)
+			//		return;
 				__set_buf();
 				m_event.m_msg.m_txt = 0;
 				m_event.m_msg.m_trans = 1;
-				send(m_event.m_sock, &m_event, sizeof(st_event), 0);
+			    int ret = send(m_event.m_sock, &m_event, sizeof(st_event), 0);
+				printf("txt send ret:%d\n", ret);
 			}
 			
-			void load_handle(user_module::CConcreteHandle *handle)
-			{
-				m_user_handle = handle;
-			}
+		//	void load_handle(user_module::CConcreteHandle *handle)
+		//	{
+		//		m_user_handle = handle;
+		//	}
 	
 			~CTxtEvent()
 			{
-				if(m_user_handle != NULL)
-					delete m_user_handle;
-				m_user_handle = NULL;
+			//	if(m_user_handle != NULL)
+			//		delete m_user_handle;
+			//	m_user_handle = NULL;
 			}
 
 			CTxtEvent(const CTxtEvent &event)=delete;
 			CTxtEvent operator=(const CTxtEvent event)=delete;
 
 		private:
-			user_module::CConcreteHandle *m_user_handle;	
+		//	user_module::CConcreteHandle *m_user_handle;	
 			void __set_buf()
 			{
 				std::string str = m_event.m_msg.m_data.m_content;
@@ -222,7 +241,17 @@ namespace event_module
 				SOCKET_T sock = m_event.m_sock;
 				m_event.m_msg.m_finc = 0;
 				m_event.m_msg.m_fins = 1;
-				send(sock, &m_event, sizeof(st_event), 0);
+loop:
+				int ret = send(sock, &m_event, sizeof(st_event), 0);
+				
+				perror("finclient send\n");
+				if(ret == -1 && errno == EAGAIN)
+				{
+					printf("fin client errno is EAGAIN\n");
+					goto loop;
+				}
+			
+				printf("finclient send ret:%d\n", ret);
 				close(sock);
 			}
 		private:
@@ -247,26 +276,30 @@ namespace event_module
 			{
 				SOCKET_T sock = m_event.m_sock;
 				recv(sock, &m_event, sizeof(st_event), 0);
-				mutex_module::CMutex  mutex;
 				
-				mutex.lock();
+				g_mutex.lock();
 
 				std::map<int, int>::iterator iter = __find_sock_map();
 
 				if(iter != m_sock_map.end())
 				{	
-					close(iter->first);
-					close(iter->second);
+					server_module::g_leave_queue.push_back(iter->first);
+					server_module::g_leave_queue.push_back(iter->second);
 				}
 				
 				std::map<int, int>::iterator iter_out = m_sock_map.find((*iter).second);
-				if(iter_out != m_sock_map.end())
+				if(iter_out != iter && iter_out != m_sock_map.end())
 				{
 					m_sock_map.erase(iter_out);
 				}
-				m_sock_map.erase(iter);
-	
-				mutex.unlock();
+
+				iter = __find_sock_map();
+				if(iter != m_sock_map.end())
+				{	
+					m_sock_map.erase(iter);
+				}
+
+				g_mutex.unlock();
 			}
 
 		private:	
@@ -318,7 +351,7 @@ namespace event_module
 			{
 				std::map<int, int>::iterator iter = m_sock_map.find(m_event.m_sock);
 				if(iter != m_sock_map.end())
-					std::cout << "find " << m_event.m_sock << std::endl;
+					printf("in trans sock find to splice:%d\n", (*iter).second);
 				return iter;
 			}
 	};
@@ -337,8 +370,11 @@ namespace event_module
 
 			~CHandleEvent()
 			{
-				delete m_abs_event;
-				m_abs_event = NULL;
+				if(m_abs_event != NULL)
+				{
+					delete m_abs_event;
+					m_abs_event = NULL;
+				}
 			}
 		private:
 			CAbstractEvent *m_abs_event;
@@ -356,7 +392,7 @@ namespace event_module
 			void generate()
 			{
 				unsigned int type = m_event.m_msg.m_syn * 1+ m_event.m_msg.m_ack * 2 + m_event.m_msg.m_txt * 4 + m_event.m_msg.m_finc * 8 + m_event.m_msg.m_fins * 16 + m_event.m_msg.m_trans * 32;
-				std::cout << "type" << type <<std::endl;
+				printf("factory event type:%d\n", type);
 				switch(type)
 				{
 					case 1:
@@ -378,20 +414,26 @@ namespace event_module
 						m_handle = new CHandleEvent(new CTransEvent(m_event));
 						break;
 					default:
+						m_handle = NULL;
 						break;
 				}	
 			}
 
 			void handle()
 			{
-				m_handle->handle_event();
 				logfile();
+				if(m_handle == NULL)
+					return;
+				m_handle->handle_event();
 			}
 
 			~CFactory()
 			{
-				delete m_handle;
-				m_handle = NULL;
+				if(m_handle != NULL)
+				{
+					delete m_handle;
+					m_handle = NULL;
+				}
 			}
 
 			void logfile()
@@ -421,9 +463,9 @@ namespace event_module
 						str_log += "\tstart to TRANS event";
 						break;
 					default:
+						str_log += "\tstart to non event";
 						break;
 				}
-
 				event_log.push_log(str_log);
 			}
 		private:
