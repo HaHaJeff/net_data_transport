@@ -29,7 +29,7 @@ namespace epoll_module
 		public:
 			CEpoll(socket_module::CSocketServer listen) : m_listen(listen),m_epollfd(0),m_map(server_module::g_sock_map), m_queue(server_module::g_leave_queue), m_cond(m_mutex)
 		{
-			m_thread = new CThreadManger(4);
+			m_thread = new CThreadManger(20);
 		}	
 
 			bool initial_epoll()

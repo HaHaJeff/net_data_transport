@@ -26,7 +26,7 @@ namespace server_module
 typedef unsigned short int			U_INT_16;
 typedef unsigned int				U_INT_32;
 
-static const U_INT_32 CONTENT_LENGTH = 1460;
+static const U_INT_32 CONTENT_LENGTH = 1330;
 static const U_INT_32 IP_LENGTH      = 16;
 
 typedef char					    CONTENT[CONTENT_LENGTH];  
