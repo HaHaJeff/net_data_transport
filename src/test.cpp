@@ -17,6 +17,7 @@
 using namespace std;
 using namespace logfile_module;
 using namespace epoll_module;
+using namespace server_module;
 
 void* f_log(void *args)
 {
@@ -65,7 +66,17 @@ int main(void)
 	pthread_create(&system_pid, NULL, f_log, &g_system_log);
 	pthread_create(&event_pid, NULL, f_log, &g_event_log);
 	pthread_create(&thread_pid, NULL, f_log, &g_thread_log);
-
+	
+	ifstream save_file("register.txt");
+	
+	while(!save_file.eof())
+	{
+		string ip;
+		int port;
+		save_file >> ip >> port;
+		g_allow_map.insert(make_pair(ip, port));
+	}
+	
 	unsigned long ip1 = 1234567;
 
 	struct message_header header = {std::pair<IP, PORT>(ip1, port1), 

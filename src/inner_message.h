@@ -21,6 +21,7 @@ namespace server_module
 {
 	std::map<int, int> g_sock_map;
 	std::list<int> g_leave_queue;
+	std::map<std::string, int> g_allow_map;
 }
 
 typedef unsigned short int			U_INT_16;

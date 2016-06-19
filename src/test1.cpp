@@ -76,10 +76,10 @@ void do_fork(int num_loop)
 
 	IP ip_dst = inet_addr("121.42.183.3");
 	PORT port_dst = 6666;
-	
+
 	IP ip_mid = inet_addr("127.0.0.1");
 	PORT port_mid  = 9999;
-	
+
 	PROTOCOL protocol = SOCK_STREAM;
 
 	client.create_sock(ip_mid, port_mid, protocol);
@@ -102,10 +102,12 @@ void do_fork(int num_loop)
 	CSynEvent syn(event);
 	syn.handle_event();
 
-//	sleep(2);
-	
+	//	sleep(2);
+	fstream file;
+	file.open("./log/client_log.txt", ios::out | ios::in | ios::app);
 	char buf[30] = "";
 	recv(client.get_sock(), buf, sizeof(buf), 0);
+
 	printf("recv: %s\n", buf);
 	for(int i = 0; i < num_loop; i++)
 	{
@@ -116,31 +118,31 @@ void do_fork(int num_loop)
 			msg.m_txt = 1;
 			event = {client.get_sock(), msg};
 			std::cout << "txt start" << std::endl;
-		
+
 			CTxtEvent txt(event);
 			txt.handle_event();
-
 			bzero(&event, sizeof(st_event));
 			recv(client.get_sock(), &event, sizeof(st_event), 0);
 			printf("recv msg:%s\n", event.m_msg.m_data.m_content);
 		}
 	}
 
-	
-//	syn.handle_event();
+
+	//	syn.handle_event();
 	st_event event2;
 	bzero(&event2, sizeof(st_event));
 	event2.m_msg.m_finc = 1;
 	event2.m_sock = client.get_sock();	
 	CFinEventClient fin(event2);
-	fin.handle_event();
+	//	fin.handle_event();
 }
+
 
 using namespace event_module;
 using namespace thread_module;
 int main(int argc, char **argv)
 {
-//	CThreadManger thmag(100);
+	//	CThreadManger thmag(100);
 
 	if(argc < 3)
 	{
@@ -166,20 +168,20 @@ int main(int argc, char **argv)
 
 	int status;
 
-//	while(waitpid(0, &status, WNOHANG) > 0)
-//	{
-//		;
-//	}
+	//	while(waitpid(0, &status, WNOHANG) > 0)
+	//	{
+	//		;
+	//	}
 
-	
+
 	socket_module::CSocketClient client;
 
 	IP ip_dst = inet_addr("121.42.183.3");
 	PORT port_dst = 6666;
-	
+
 	IP ip_mid = inet_addr("127.0.0.1");
 	PORT port_mid  = 9999;
-	
+
 	PROTOCOL protocol = SOCK_STREAM;
 
 	client.create_sock(ip_mid, port_mid, protocol);
@@ -190,7 +192,9 @@ int main(int argc, char **argv)
 		protocol};
 
 	signal(SIGINT, handle_sigint);
-
+	
+	fstream file;
+	file.open("./log/client_log.txt", ios::in | ios::out | ios::app);
 	st_message msg;
 	msg.m_syn = 1;
 	//	msg.m_txt = 1;
@@ -202,11 +206,14 @@ int main(int argc, char **argv)
 	CSynEvent syn(event);
 	syn.handle_event();
 
-//	sleep(2);
-	
+	//	sleep(2);
+
 	char buf[30] = "";
-	recv(client.get_sock(), buf, sizeof(buf), 0);
+	recv(client.get_sock(), buf, sizeof(buf), 0);	
 	printf("recv: %s\n", buf);
+	
+	string str = " transport message ";
+	string space = " ";
 	for(int i = 0; i < atoi(argv[1]); i++)
 	{
 		if(strcmp(buf, STR_OK.c_str()) == 0)
@@ -216,18 +223,22 @@ int main(int argc, char **argv)
 			msg.m_txt = 1;
 			event = {client.get_sock(), msg};
 			std::cout << "txt start" << std::endl;
-		
+
 			CTxtEvent txt(event);
 			txt.handle_event();
-
+			
+			string ip_str1 = get_str_ip(msg_header.m_src.first);
+			string ip_str2 = get_str_ip(msg_header.m_dst.first);
+			file << ip_str1 << space << msg_header.m_src.second << str << ip_str2 << space << msg_header.m_dst.second << endl;  
+			
 			bzero(&event, sizeof(st_event));
 			recv(client.get_sock(), &event, sizeof(st_event), 0);
 			printf("recv msg:%s\n", event.m_msg.m_data.m_content);
 		}
 	}
 
-	
-//	syn.handle_event();
+
+	//	syn.handle_event();
 	st_event event2;
 	bzero(&event2, sizeof(st_event));
 	event2.m_msg.m_finc = 1;

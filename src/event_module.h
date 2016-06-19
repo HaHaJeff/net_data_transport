@@ -20,7 +20,7 @@ CLogFile& event_log = g_event_log;
 
 namespace event_module
 {
-	
+
 	mutex_module::CMutex g_mutex;
 
 	std::string get_str_ip(IP ip)
@@ -78,7 +78,7 @@ namespace event_module
 						encrypt_module::STR_ENCRYPT, trans_msg);
 				memcpy(&msg.m_header, "0xccefccefccefccefccefccefccefccefccefccefccefccefccefccefccef", sizeof(st_message_header));
 				memcpy(&msg.m_data, trans_msg.c_str(), strlen(trans_msg.c_str()));
-				
+
 				int ret = send(sock, &m_event, sizeof(st_event), 0);
 
 				printf("syn send ret:%d\n", ret);
@@ -90,39 +90,39 @@ namespace event_module
 	{
 		public:
 			CAckEvent() : m_sock_map(server_module::g_sock_map)
-			{
-				bzero(&m_event, sizeof(st_event));
-			}
+		{
+			bzero(&m_event, sizeof(st_event));
+		}
 
 			CAckEvent(st_event &event) : m_sock_map(server_module::g_sock_map)
-			{
-				CAckEvent();
-				memcpy(&m_event, &event, sizeof(st_event));
-			}
+		{
+			CAckEvent();
+			memcpy(&m_event, &event, sizeof(st_event));
+		}
 
 			virtual void handle_event()
 			{
 				SOCKET_T sock = m_event.m_sock;
-				
+
 				int ret = recv(sock, &m_event, sizeof(st_event), 0);
-		
+
 				printf("ack send ret:%d\n", ret);
 				/*
-				if(ret == -1)
-				{
+				   if(ret == -1)
+				   {
 
-					if(errno == EAGAIN)
-					{	
-						cout << "EAGIN" << endl;
-						return;
-					}	
-					if(errno == EINTR)
-					{	
-						cout << "EINTR" << endl;
-						return;
-					}	
+				   if(errno == EAGAIN)
+				   {	
+				   cout << "EAGIN" << endl;
+				   return;
+				   }	
+				   if(errno == EINTR)
+				   {	
+				   cout << "EINTR" << endl;
+				   return;
+				   }	
 
-				}
+				   }
 				*/
 
 				st_message_header &msg_header = m_event.m_msg.m_header;
@@ -139,9 +139,9 @@ namespace event_module
 					socket_module::CSocketClient sock_out;
 					sock_out.create_sock(msg_header.m_dst.first, msg_header.m_dst.second, msg_header.m_protocol);
 					sock_out.connect_sock();
-					
+
 					printf("in ack moudle peer sock_out:%d\n", sock_out.get_sock());
-				
+
 					g_mutex.lock();
 					m_sock_map.insert(std::pair<int, int>(sock, sock_out.get_sock()));
 					m_sock_map.insert(std::pair<int, int>(sock_out.get_sock(), sock));
@@ -161,11 +161,22 @@ namespace event_module
 			bool __is_ok_for_connect(SOCKET_T sock, const std::string str_ip)
 			{
 				struct sockaddr_in conn;
+				
 				socklen_t len = sizeof(struct sockaddr);
+				
 				bzero(&conn, len);
+				
 				getpeername(sock, (struct sockaddr *)&conn, &len);
 
-				return !strcmp(str_ip.c_str(), inet_ntoa(conn.sin_addr));
+				if(server_module::g_allow_map.find(str_ip) != server_module::g_allow_map.end())
+				{
+					cout << "TRUE" << endl;
+					return true;
+				}
+				else
+					return false;
+
+//				return !strcmp(str_ip.c_str(), inet_ntoa(conn.sin_addr));
 			}
 
 			std::map<int, int>& m_sock_map;
@@ -177,7 +188,7 @@ namespace event_module
 		public:
 			CTxtEvent()
 			{
-			//	m_user_handle = NULL;
+				//	m_user_handle = NULL;
 				bzero(&m_event, sizeof(st_event));
 			}
 
@@ -189,32 +200,32 @@ namespace event_module
 
 			virtual void handle_event()
 			{
-			//	if(m_user_handle == NULL)
-			//		return;
+				//	if(m_user_handle == NULL)
+				//		return;
 				__set_buf();
 				m_event.m_msg.m_txt = 0;
 				m_event.m_msg.m_trans = 1;
-			    int ret = send(m_event.m_sock, &m_event, sizeof(st_event), 0);
+				int ret = send(m_event.m_sock, &m_event, sizeof(st_event), 0);
 				printf("txt send ret:%d\n", ret);
 			}
-			
-		//	void load_handle(user_module::CConcreteHandle *handle)
-		//	{
-		//		m_user_handle = handle;
-		//	}
-	
+
+			//	void load_handle(user_module::CConcreteHandle *handle)
+			//	{
+			//		m_user_handle = handle;
+			//	}
+
 			~CTxtEvent()
 			{
-			//	if(m_user_handle != NULL)
-			//		delete m_user_handle;
-			//	m_user_handle = NULL;
+				//	if(m_user_handle != NULL)
+				//		delete m_user_handle;
+				//	m_user_handle = NULL;
 			}
 
 			CTxtEvent(const CTxtEvent &event)=delete;
 			CTxtEvent operator=(const CTxtEvent event)=delete;
 
 		private:
-		//	user_module::CConcreteHandle *m_user_handle;	
+			//	user_module::CConcreteHandle *m_user_handle;	
 			void __set_buf()
 			{
 				std::string str = m_event.m_msg.m_data.m_content;
@@ -243,14 +254,14 @@ namespace event_module
 				m_event.m_msg.m_fins = 1;
 loop:
 				int ret = send(sock, &m_event, sizeof(st_event), 0);
-				
+
 				perror("finclient send\n");
 				if(ret == -1 && errno == EAGAIN)
 				{
 					printf("fin client errno is EAGAIN\n");
 					goto loop;
 				}
-			
+
 				printf("finclient send ret:%d\n", ret);
 				close(sock);
 			}
@@ -262,21 +273,21 @@ loop:
 	{
 		public:
 			CFinEventServer() : m_sock_map(server_module::g_sock_map)
-			{
-				bzero(&m_event, sizeof(st_event));
-			}
+		{
+			bzero(&m_event, sizeof(st_event));
+		}
 
 			CFinEventServer(st_event &event) : m_sock_map(server_module::g_sock_map)
-			{
-				CFinEventServer();
-				memcpy(&m_event, &event, sizeof(st_event));
-			}
+		{
+			CFinEventServer();
+			memcpy(&m_event, &event, sizeof(st_event));
+		}
 
 			virtual void handle_event()
 			{
 				SOCKET_T sock = m_event.m_sock;
 				recv(sock, &m_event, sizeof(st_event), 0);
-				
+
 				g_mutex.lock();
 
 				std::map<int, int>::iterator iter = __find_sock_map();
@@ -286,7 +297,7 @@ loop:
 					server_module::g_leave_queue.push_back(iter->first);
 					server_module::g_leave_queue.push_back(iter->second);
 				}
-				
+
 				std::map<int, int>::iterator iter_out = m_sock_map.find((*iter).second);
 				if(iter_out != iter && iter_out != m_sock_map.end())
 				{
@@ -304,7 +315,7 @@ loop:
 
 		private:	
 			std::map<int, int> &m_sock_map;
-		
+
 		private:
 			std::map<int, int>::iterator __find_sock_map()
 			{
@@ -317,15 +328,15 @@ loop:
 	{
 		public:
 			CTransEvent() : m_sock_map(server_module::g_sock_map)
-			{
-				bzero(&m_event, sizeof(st_event));
-			}
+		{
+			bzero(&m_event, sizeof(st_event));
+		}
 
 			CTransEvent(st_event &event) : m_sock_map(server_module::g_sock_map)
-			{
-				CTransEvent();
-				memcpy(&m_event, &event, sizeof(st_event));
-			}
+		{
+			CTransEvent();
+			memcpy(&m_event, &event, sizeof(st_event));
+		}
 		public:
 			virtual void handle_event()
 			{	
@@ -340,12 +351,12 @@ loop:
 
 				m_mutex.unlock();
 			}
-		
+
 		private:
 			mutex_module::CMutex m_mutex;
 		private:	
 			std::map<int, int> &m_sock_map;
-		
+
 		private:
 			std::map<int, int>::iterator __find_sock_map()
 			{
@@ -384,10 +395,10 @@ loop:
 	{
 		public:
 			CFactory(st_event event) : m_handle(new CHandleEvent(new CSynEvent(event)))
-			{
+		{
 			//	recv(event.m_sock, &event.m_msg, sizeof(st_message), 0);
-				memcpy(&m_event, &event, sizeof(st_event));
-			}
+			memcpy(&m_event, &event, sizeof(st_event));
+		}
 
 			void generate()
 			{
@@ -440,7 +451,7 @@ loop:
 			{
 				IP ip = m_event.m_msg.m_header.m_src.first;
 				std::string str_log = get_str_ip(ip);
-				
+
 				unsigned int type = m_event.m_msg.m_syn * 1+ m_event.m_msg.m_ack * 2 + m_event.m_msg.m_txt * 4 + m_event.m_msg.m_finc * 8 + m_event.m_msg.m_fins * 16 + m_event.m_msg.m_trans * 32;
 				switch(type)
 				{
@@ -458,7 +469,7 @@ loop:
 						break;
 					case 16:
 						str_log += "\tstart to FINSERVER event";
-							break;
+						break;
 					case 32:
 						str_log += "\tstart to TRANS event";
 						break;
@@ -469,8 +480,8 @@ loop:
 				event_log.push_log(str_log);
 			}
 		private:
-				st_event m_event;
-				CHandleEvent* m_handle;
+			st_event m_event;
+			CHandleEvent* m_handle;
 		protected:
 	};
 }
